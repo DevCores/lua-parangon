@@ -254,7 +254,7 @@ end
         if (Parangon.Infos[pAccid].level < Parangon.Config.maxExp) then
             Parangon.Infos[pAccid].level = Parangon.Infos[pAccid].level + 1
             Parangon.Infos[pAccid].exp = 0
-            Parangon.Infos[pAccid].points = (Parangon.Infos[pAccid].level * Parangon.Config.pointsPerLevel) - Parangon.Stats[pGuid][7464] - Parangon.Stats[pGuid][7471] - Parangon.Stats[pGuid][7477] - Parangon.Stats[pGuid][7468];
+            Parangon.Infos[pAccid].points = Parangon.Infos[pAccid].points + Parangon.Config.pointsPerLevel;
             player:SendBroadcastMessage("Congratulations, you've just raised your level of Parangon.")
         end
     end
