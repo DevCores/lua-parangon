@@ -323,13 +323,13 @@ function parangon.onGossipSelect(event, player, object, sender, intid, code)
           player:GossipMenuAddItem(4, "|TInterface\\icons\\achievement_pvp_g_10:30:30:-18:0|tAjouter des points", 1, 100, true, "")
           player:GossipMenuAddItem(4, "|TInterface\\icons\\achievement_pvp_o_11:30:30:-18:0|tSupprimer des points", 1, 200, true, "")
           player:GossipMenuAddItem(4, "|TInterface\\icons\\spell_holy_powerinfusion:30:30:-18:0|tRéinitialiser mes points", 1, 300, false, "")
+          player:GossipMenuAddItem(4, "< retour <", 1, 400, false, "")
         else
           player:GossipMenuAddItem(4, "|TInterface\\icons\\achievement_pvp_g_10:30:30:-18:0|tAdd points", 1, 100, true, "")
           player:GossipMenuAddItem(4, "|TInterface\\icons\\achievement_pvp_o_11:30:30:-18:0|tRemove points", 1, 200, true, "")
           player:GossipMenuAddItem(4, "|TInterface\\icons\\spell_holy_powerinfusion:30:30:-18:0|tReset my points", 1, 300, false, "")
+          player:GossipMenuAddItem(4, "< back <", 1, 400, false, "")
         end
-
-        player:GossipMenuAddItem(4, "< back <", 1, 400, false, "")
 
         player:GossipSendMenu(0x7FFFFFFF, player, 1)
     end
