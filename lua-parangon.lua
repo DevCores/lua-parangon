@@ -9,7 +9,7 @@ local parangon = {
     config = {
         db_name = 'R1_Eluna',
 
-        pointsPerLevel = 1,
+        pointsPerLevel = 2,
         minLevel = 1,
 
         expMulti = 1,
@@ -24,10 +24,10 @@ local parangon = {
     },
 
     spells = {
-        [7464] = {'|TInterface\\icons\\inv_potion_161:30:30:-18:0|t', 'Strenght' },
-        [7471] = {'|TInterface\\icons\\inv_potion_165:30:30:-18:0|t', 'Agility' },
-        [7477] = {'|TInterface\\icons\\inv_potion_160:30:30:-18:0|t', 'Stamina' },
-        [7468] = {'|TInterface\\icons\\inv_potion_163:30:30:-18:0|t', 'Intellect' }
+        [7464] = {'|TInterface\\icons\\inv_potion_161:30:30:-18:0|t', 'Strenght', 'Force' },
+        [7471] = {'|TInterface\\icons\\inv_potion_165:30:30:-18:0|t', 'Agility', 'Agilité' },
+        [7477] = {'|TInterface\\icons\\inv_potion_160:30:30:-18:0|t', 'Stamina', 'Endurance' },
+        [7468] = {'|TInterface\\icons\\inv_potion_163:30:30:-18:0|t', 'Intellect', 'Intelligence' }
     },
 }
 
@@ -67,57 +67,102 @@ function parangon.setStatsInformation(player, stat, value, flags)
         if (pLevel >= parangon.config.minLevel) then
 
             if not tonumber(value) or value < 0 then
-                player:SendNotification('Please enter a valid number.')
+                if ( player:GetDbLocaleIndex() == 2 ) then
+                  player:SendNotification('Merci d\'entrer un nombre valide.')
+                else
+                  player:SendNotification('Please enter a valid number.')
+                end
                 return false
             end
 
             if (flags and player:GetData('parangon_stats_'..stat) + value > parangon.config.maxStat) then
-                player:SendNotification('You can no longer add points.')
+                if ( player:GetDbLocaleIndex() == 2 ) then
+                  player:SendNotification('Vous ne pouvez plus ajouter de points.')
+                else
+                  player:SendNotification('You can no longer add points.')
+                end
                 return false
             end
 
             if flags then
                 if ((player:GetData('parangon_points') - value) >= 0) then
                     player:SetData('parangon_stats_'..stat, (player:GetData('parangon_stats_'..stat) + value))
-                    player:SetData('parangon_points', (player:GetData('parangon_points') - value))
-
-                    player:SetData('parangon_points_spend', (player:GetData('parangon_points_spend') + value))
+                    parangon.calcPoints(player)
                 else
-                    player:SendNotification('You have no more points to award.')
+                    if ( player:GetDbLocaleIndex() == 2 ) then
+                      player:SendNotification('Vous n\'avez plus de points à attribuer.')
+                    else
+                      player:SendNotification('You have no more points to award.')
+                    end
                     return false
                 end
             else
                 if (player:GetData('parangon_stats_'..stat) > 0) then
                     player:SetData('parangon_stats_'..stat, (player:GetData('parangon_stats_'..stat) - value))
-                    player:SetData('parangon_points', (player:GetData('parangon_points') + value))
-
-                    player:SetData('parangon_points_spend', (player:GetData('parangon_points_spend') - value))
+                    parangon.calcPoints(player)
                 else
-                    player:SendNotification('You have no points to take out.')
+                    if ( player:GetDbLocaleIndex() == 2 ) then
+                      player:SendNotification('Vous n\'avez pas de points à retirer.')
+                    else
+                      player:SendNotification('You have no points to take out.')
+                    end
                     return false
                 end
             end
         else
-            player:SendNotification('You don\'t have the level required to do that.')
+            if ( player:GetDbLocaleIndex() == 2 ) then
+              player:SendNotification('Vous n\'avez pas le niveau requis pour le faire.')
+            else
+              player:SendNotification('You don\'t have the level required to do that.')
+            end
         end
     else
-        player:SendNotification('You can\'t do this in combat.')
+        if ( player:GetDbLocaleIndex() == 2 ) then
+          player:SendNotification('Vous ne pouvez pas faire ça en combat.')
+        else
+          player:SendNotification('You can\'t do this in combat.')
+        end
     end
 end
 
+function parangon.calcPoints(player)
+  local pAcc = player:GetAccountId()
+
+  if not parangon.account[pAcc] then
+    parangon.account[pAcc] = {
+        level = 1,
+        exp = 0,
+        exp_max = 0,
+    }
+    parangon.onLogin(event, player)
+  end
+
+  local str = player:GetData('parangon_stats_7464')
+  local agi = player:GetData('parangon_stats_7471')
+  local sta = player:GetData('parangon_stats_7477')
+  local int = player:GetData('parangon_stats_7468')
+
+  local points_spend = str + agi + sta + int
+  local points_calc = parangon.account[pAcc].level * parangon.config.pointsPerLevel
+
+  points_calc = points_calc - points_spend
+
+  player:SetData('parangon_points', points_calc)
+end
+
 function parangon.onLogin(event, player)
-    local pAcc = player:GetAccountId()
-    local getParangonCharInfo = CharDBQuery('SELECT strength, agility, stamina, intellect FROM `'..parangon.config.db_name..'`.`characters_parangon` WHERE account_id = '..pAcc)
+    local pGuid = player:GetGUIDLow()
+
+    local getParangonCharInfo = CharDBQuery('SELECT strength, agility, stamina, intellect FROM `'..parangon.config.db_name..'`.`characters_parangon` WHERE guid = '..pGuid)
     if getParangonCharInfo then
         player:setParangonInfo(getParangonCharInfo:GetUInt32(0), getParangonCharInfo:GetUInt32(1), getParangonCharInfo:GetUInt32(2), getParangonCharInfo:GetUInt32(3))
-        player:SetData('parangon_points', getParangonCharInfo:GetUInt32(0) + getParangonCharInfo:GetUInt32(1) + getParangonCharInfo:GetUInt32(2) + getParangonCharInfo:GetUInt32(3))
     else
         local pGuid = player:GetGUIDLow()
         CharDBExecute('INSERT INTO `'..parangon.config.db_name..'`.`characters_parangon` VALUES ('..pAcc..', '..pGuid..', 0, 0, 0, 0)')
         player:setParangonInfo(0, 0, 0, 0)
     end
-    player:SetData('parangon_points_spend', 0)
 
+    local pAcc = player:GetAccountId()
     if not parangon.account[pAcc] then
         parangon.account[pAcc] = {
             level = 1,
@@ -135,8 +180,8 @@ function parangon.onLogin(event, player)
         end
     end
 
+    parangon.calcPoints(player)
     parangon.setStats(player)
-    player:SetData('parangon_points', (parangon.account[pAcc].level * parangon.config.pointsPerLevel) - player:GetData('parangon_points'))
 end
 RegisterPlayerEvent(3, parangon.onLogin)
 
@@ -183,10 +228,18 @@ function parangon.setExp(player, victim)
         local isPlayer = GetGUIDEntry(victim:GetGUID())
         if (isPlayer == 0) then
             parangon.account[pAcc].exp = parangon.account[pAcc].exp + parangon.config.pvpKill
-            player:SendBroadcastMessage('Your victim gives you '..parangon.config.pvpKill..' Parangon experience points.')
+            if ( player:GetDbLocaleIndex() == 2 ) then
+              player:SendNotification('Votre victime vous donne '..parangon.config.pvpKill..' points d\'expériences Parangon.')
+            else
+              player:SendNotification('Your victim gives you '..parangon.config.pvpKill..' Parangon experience points.')
+            end
         else
             parangon.account[pAcc].exp = parangon.account[pAcc].exp + parangon.config.pveKill
-            player:SendBroadcastMessage('Your victim gives you '..parangon.config.pveKill..' Parangon experience points.')
+            if ( player:GetDbLocaleIndex() == 2 ) then
+              player:SendNotification('Votre victime vous donne '..parangon.config.pveKill..' points d\'expériences Parangon.')
+            else
+              player:SendNotification('Your victim gives you '..parangon.config.pveKill..' Parangon experience points.')
+            end
         end
     end
 
@@ -219,11 +272,16 @@ function Player:SetParangonLevel(level)
     parangon.account[pAcc].level = parangon.account[pAcc].level + level
     parangon.account[pAcc].exp = 0
     parangon.account[pAcc].exp_max = parangon.config.expMax * parangon.account[pAcc].level
-    self:SetData('parangon_points', (((parangon.account[pAcc].level * parangon.config.pointsPerLevel) - self:GetData('parangon_points')) + self:GetData('parangon_points') - self:GetData('parangon_points_spend')))
+
+    parangon.calcPoints(self)
 
     self:CastSpell(self, 24312, true)
     self:RemoveAura( 24312 )
-    self:SendNotification('|CFF00A2FFYou have just passed a level of Paragon.\nCongratulations, you are now level '..parangon.account[pAcc].level..'!')
+    if ( player:GetDbLocaleIndex() == 2 ) then
+      self:SendNotification('|CFF00A2FFVous venez de passer un niveau de Paragon.\nFélicitations, vous êtes maintenant de niveau '..parangon.account[pAcc].level..'!')
+    else
+      self:SendNotification('|CFF00A2FFYou have just passed a level of Paragon.\nCongratulations, you are now level '..parangon.account[pAcc].level..'!')
+    end
 end
 
 function parangon.onGossipHello(event, player, object)
@@ -232,13 +290,25 @@ function parangon.onGossipHello(event, player, object)
     local pName = player:GetName()
     local pAccId = player:GetAccountId()
 
-    player:GossipSetText("      "..pName.." 's Parangon\n\nLevel : "..parangon.account[pAccId].level.."\n\nExperience : "..parangon.account[pAccId].exp.."\nMax Experience : "..parangon.account[pAccId].exp_max.."\n\n      Your points available :  |CFFBC0000"..player:GetData('parangon_points'))
-
-    for stat_id, stat_info in pairs(parangon.spells) do
-        player:GossipMenuAddItem(4, stat_info[1].."|CFF9100BC[ "..player:GetData('parangon_stats_'..stat_id).."  / "..parangon.config.maxStat.." ]|r |- "..stat_info[2], 1, stat_id, false, "")
+    if ( player:GetDbLocaleIndex() == 2 ) then
+      player:GossipSetText("      Parangon de "..pName.."\n\nNiveau : "..parangon.account[pAccId].level.."\n\nExpérience : "..parangon.account[pAccId].exp.."\nExpérience max : "..parangon.account[pAccId].exp_max.."\n\n      Vos points disponible :  |CFFBC0000"..player:GetData('parangon_points'))
+    else
+      player:GossipSetText("      "..pName.." 's Parangon\n\nLevel : "..parangon.account[pAccId].level.."\n\nExperience : "..parangon.account[pAccId].exp.."\nMax Experience : "..parangon.account[pAccId].exp_max.."\n\n      Your points available :  |CFFBC0000"..player:GetData('parangon_points'))
     end
 
-    player:GossipMenuAddItem(4, "|TInterface\\icons\\spell_holy_powerinfusion:30:30:-18:0|tReset all my points", 1, 300, false, "")
+    for stat_id, stat_info in pairs(parangon.spells) do
+        if ( player:GetDbLocaleIndex() == 2 ) then
+          player:GossipMenuAddItem(4, stat_info[1].."|CFF9100BC[ "..player:GetData('parangon_stats_'..stat_id).."  / "..parangon.config.maxStat.." ]|r |- "..stat_info[3], 1, stat_id, false, "")
+        else
+          player:GossipMenuAddItem(4, stat_info[1].."|CFF9100BC[ "..player:GetData('parangon_stats_'..stat_id).."  / "..parangon.config.maxStat.." ]|r |- "..stat_info[2], 1, stat_id, false, "")
+        end
+    end
+
+    if ( player:GetDbLocaleIndex() == 2 ) then
+      player:GossipMenuAddItem(4, "|TInterface\\icons\\spell_holy_powerinfusion:30:30:-18:0|tRéinitialiser tous mes points", 1, 300, false, "")
+    else
+      player:GossipMenuAddItem(4, "|TInterface\\icons\\spell_holy_powerinfusion:30:30:-18:0|tReset all my points", 1, 300, false, "")
+    end
     player:GossipSendMenu(0x7FFFFFFF, object, 1)
 end
 RegisterPlayerGossipEvent(1, 1, parangon.onGossipHello)
@@ -249,9 +319,15 @@ function parangon.onGossipSelect(event, player, object, sender, intid, code)
 
         player:GossipClearMenu()
 
-        player:GossipMenuAddItem(4, "|TInterface\\icons\\achievement_pvp_g_10:30:30:-18:0|tAdd points", 1, 100, true, "")
-        player:GossipMenuAddItem(4, "|TInterface\\icons\\achievement_pvp_o_11:30:30:-18:0|tRemove points", 1, 200, true, "")
-        player:GossipMenuAddItem(4, "|TInterface\\icons\\spell_holy_powerinfusion:30:30:-18:0|tReset my points", 1, 300, false, "")
+        if ( player:GetDbLocaleIndex() == 2 ) then
+          player:GossipMenuAddItem(4, "|TInterface\\icons\\achievement_pvp_g_10:30:30:-18:0|tAjouter des points", 1, 100, true, "")
+          player:GossipMenuAddItem(4, "|TInterface\\icons\\achievement_pvp_o_11:30:30:-18:0|tSupprimer des points", 1, 200, true, "")
+          player:GossipMenuAddItem(4, "|TInterface\\icons\\spell_holy_powerinfusion:30:30:-18:0|tRéinitialiser mes points", 1, 300, false, "")
+        else
+          player:GossipMenuAddItem(4, "|TInterface\\icons\\achievement_pvp_g_10:30:30:-18:0|tAdd points", 1, 100, true, "")
+          player:GossipMenuAddItem(4, "|TInterface\\icons\\achievement_pvp_o_11:30:30:-18:0|tRemove points", 1, 200, true, "")
+          player:GossipMenuAddItem(4, "|TInterface\\icons\\spell_holy_powerinfusion:30:30:-18:0|tReset my points", 1, 300, false, "")
+        end
 
         player:GossipMenuAddItem(4, "< back <", 1, 400, false, "")
 
@@ -266,7 +342,11 @@ function parangon.onGossipSelect(event, player, object, sender, intid, code)
             parangon.setStatsInformation(player, player:GetData('temp_data_statid'), tonumber(code), flags)
             player:SetData('temp_data_statid', nil)
         else
-            player:SendNotification('You can only enter numbers')
+            if ( player:GetDbLocaleIndex() == 2 ) then
+              player:SendNotification('Vous ne pouvez saisir que des chiffres')
+            else
+              player:SendNotification('You can only enter numbers')
+            end
         end
         parangon.setStats(player)
         parangon.onGossipHello(event, player, player)
